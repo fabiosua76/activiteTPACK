@@ -188,10 +188,20 @@
 
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
-    // API partagée (Netlify Database) : tous les appareils lisent et écrivent au même endroit
-    const API_URL = "/api/scores";
-    const POLL_MS = 2000;
+    const firebaseConfig = {
+        apiKey: "AIzaSyCHqvVzuXA-cJr1kTKZy8SUWf1O7m513Ok",
+        authDomain: "activite-tpack.firebaseapp.com",
+        projectId: "activite-tpack",
+        storageBucket: "activite-tpack.firebasestorage.app",
+        messagingSenderId: "848648481025",
+        appId: "1:848648481025:web:9ddb8f74ec306c104f5300"
+    };
+    const firebaseConfigured = !Object.values(firebaseConfig).some(value => value.startsWith('YOUR_'));
+    let scoresRef = null;
 
     const scenarios = [
         { 
@@ -254,6 +264,7 @@
 
     // Applique les valeurs reçues du serveur ; retourne true si quelque chose a changé
     function applyServerData(data) {
+        data = data || {};
         const snapshot = JSON.stringify(data);
         if (snapshot === lastSnapshot) return false;
         lastSnapshot = snapshot;
@@ -271,14 +282,13 @@
     }
 
     async function fetchScores() {
+        if (!scoresRef) return false;
         try {
-            const res = await fetch(API_URL, { cache: 'no-store' });
-            if (!res.ok) throw new Error(res.status);
-            const data = await res.json();
+            const snapshot = await scoresRef.get();
             setSyncStatus(true);
             // Ne pas écraser un clic local pas encore enregistré
             if (pendingWrites > 0) return false;
-            return applyServerData(data);
+            return applyServerData(snapshot.data());
         } catch (e) {
             setSyncStatus(false);
             return false;
@@ -286,28 +296,31 @@
     }
 
     async function sendRequest(method, body) {
+        if (!scoresRef) {
+            setSyncStatus(false);
+            return;
+        }
         pendingWrites++;
         try {
-            const res = await fetch(API_URL, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: body ? JSON.stringify(body) : undefined
-            });
-            if (!res.ok) throw new Error(res.status);
-            const data = await res.json();
+            if (method === 'DELETE') {
+                await scoresRef.set({
+                    A: { 1: 0, 2: 0, 3: 0 },
+                    B: { 1: 0, 2: 0, 3: 0 },
+                    C: { 1: 0, 2: 0, 3: 0 }
+                });
+            } else {
+                await scoresRef.update({ [`${body.group}.${body.scenarioId}`]: body.val });
+            }
+            const snapshot = await scoresRef.get();
             setSyncStatus(true);
             pendingWrites--;
-            if (pendingWrites === 0 && applyServerData(data)) refreshViews();
+            if (pendingWrites === 0 && applyServerData(snapshot.data())) refreshViews();
+            return true;
         } catch (e) {
             pendingWrites--;
             setSyncStatus(false);
+            return false;
         }
-    }
-
-    // Synchronisation automatique : chaque appareil récupère les changements des autres
-    async function poll() {
-        if (await fetchScores()) refreshViews();
-        setTimeout(poll, POLL_MS);
     }
 
     document.addEventListener('visibilitychange', () => {
@@ -322,10 +335,14 @@
 
     async function resetAllScores() {
         if (confirm("Voulez-vous vraiment effacer tous les pointages et recommencer l'activité à zéro pour tous les groupes ?")) {
+            if (!scoresRef) {
+                alert("La synchronisation Firebase n'est pas configurée ou disponible.");
+                return;
+            }
             scores = JSON.parse(JSON.stringify(defaultScores));
             refreshViews();
-            await sendRequest('DELETE');
-            alert("L'activité a été réinitialisée avec succès.");
+            const saved = await sendRequest('DELETE');
+            alert(saved ? "L'activité a été réinitialisée avec succès." : "Échec de la réinitialisation. Vérifiez la connexion Firebase.");
         }
     }
 
@@ -482,10 +499,37 @@
     }
 
     async function init() {
-        await fetchScores();
         renderWorkspaces();
         switchGroup('A');
-        setTimeout(poll, POLL_MS);
+        if (!firebaseConfigured) {
+            const status = document.getElementById('syncStatus');
+            status.textContent = '⚙️ Configurez Firebase';
+            status.style.background = '#fef3c7';
+            status.style.color = '#92400e';
+            return;
+        }
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            await firebase.auth().signInAnonymously();
+            scoresRef = firebase.firestore().collection('shared').doc('scores');
+            await firebase.firestore().runTransaction(async transaction => {
+                const snapshot = await transaction.get(scoresRef);
+                if (!snapshot.exists) {
+                    transaction.set(scoresRef, {
+                        A: { 1: 0, 2: 0, 3: 0 },
+                        B: { 1: 0, 2: 0, 3: 0 },
+                        C: { 1: 0, 2: 0, 3: 0 }
+                    });
+                }
+            });
+            scoresRef.onSnapshot(snapshot => {
+                setSyncStatus(true);
+                if (pendingWrites === 0 && applyServerData(snapshot.data())) refreshViews();
+            }, () => setSyncStatus(false));
+        } catch (e) {
+            setSyncStatus(false);
+        }
     }
 
     init();
