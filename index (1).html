@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atelier TPACK - Analyse d'intégration technologique</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --border-color: #cbd5e1;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 950px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h1 { color: var(--primary); margin-bottom: 5px; }
+        .sync-badge {
+            display: inline-block;
+            background: #dcfce7;
+            color: #166534;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .role-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: var(--primary-dark); }
+        button.active { background-color: #0f172a; }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            margin-bottom: 20px;
+        }
+        .hidden { display: none; }
+        
+        .scenario-box {
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 25px;
+            margin-bottom: 25px;
+        }
+        .scenario-box:last-child { border-bottom: none; }
+
+        .scenario-desc {
+            background: #f8fafc;
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            border-radius: 0 6px 6px 0;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .scenario-desc ul {
+            margin: 8px 0 0 0;
+            padding-left: 20px;
+        }
+
+        .workspace {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .triangle-container {
+            position: relative;
+            width: 260px;
+            height: 230px;
+        }
+
+        .axis-label {
+            font-weight: bold;
+            font-size: 0.9rem;
+            fill: #1e293b;
+        }
+        
+        .node {
+            cursor: pointer;
+            transition: r 0.2s, fill 0.2s;
+        }
+        .node:hover {
+            r: 8;
+            fill: #ef4444;
+        }
+
+        .control-panel {
+            text-align: center;
+            margin-top: 20px;
+            padding: 20px;
+            background: #e0f2fe;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Atelier Interactif TPACK</h1>
+        <p>Évaluation de l'alignement pédagogique et technologique</p>
+        <span class="sync-badge" id="syncStatus">⏳ Connexion…</span>
+    </header>
+
+    <!-- Sélecteur de groupe -->
+    <div class="role-selector" id="navGroups">
+        <button onclick="switchGroup('A')" id="btnA">Espace Groupe A</button>
+        <button onclick="switchGroup('B')" id="btnB">Espace Groupe B</button>
+        <button onclick="switchGroup('C')" id="btnC">Espace Groupe C</button>
+        <button onclick="switchGroup('Admin')" id="btnAdmin" style="background-color: #0f172a;">Mode Animateur (Résultat)</button>
+    </div>
+
+    <!-- ESPACE GROUPE A -->
+    <div id="groupA" class="card group-view">
+        <h2>Espace de travail - Groupe A</h2>
+        <p><em>Consigne : Vous évaluez <strong>CK</strong> sur la Situation 1, <strong>PK</strong> sur la Situation 2, et <strong>TK</strong> sur la Situation 3.</em></p>
+        <div id="contentA"></div>
+    </div>
+
+    <!-- ESPACE GROUPE B -->
+    <div id="groupB" class="card group-view hidden">
+        <h2>Espace de travail - Groupe B</h2>
+        <p><em>Consigne : Vous évaluez <strong>PK</strong> sur la Situation 1, <strong>TK</strong> sur la Situation 2, et <strong>CK</strong> sur la Situation 3.</em></p>
+        <div id="contentB"></div>
+    </div>
+
+    <!-- ESPACE GROUPE C -->
+    <div id="groupC" class="card group-view hidden">
+        <h2>Espace de travail - Groupe C</h2>
+        <p><em>Consigne : Vous évaluez <strong>TK</strong> sur la Situation 1, <strong>CK</strong> sur la Situation 2, et <strong>PK</strong> sur la Situation 3.</em></p>
+        <div id="contentC"></div>
+    </div>
+
+    <!-- ESPACE ANIMATEUR / RÉSULTAT -->
+    <div id="groupAdmin" class="card group-view hidden">
+        <h2>Tableau de bord de l'Animateur</h2>
+        <p>Visualisez en direct la synthèse des triangles de tous les groupes (mise à jour automatique toutes les 2 secondes).</p>
+        
+        <div class="control-panel">
+            <button onclick="forceRefresh()" style="font-size: 1.05rem; padding: 12px 20px; background-color: #16a34a;">🔄 Afficher les Triangles</button>
+            <button onclick="resetAllScores()" style="font-size: 1.05rem; padding: 12px 20px; background-color: #ef4444;">Recommencer (Effacer tout)</button>
+        </div>
+
+        <div id="resultDisplay" style="margin-top: 25px;" class="hidden">
+            <h3 style="text-align: center; margin-bottom: 20px;">Synthèse des Mises en Situation</h3>
+            <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;" id="summaryTriangles"></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // API partagée (Netlify Database) : tous les appareils lisent et écrivent au même endroit
+    const API_URL = "/api/scores";
+    const POLL_MS = 2000;
+
+    const scenarios = [
+        { 
+            id: 1, 
+            title: "Mise en situation 1", 
+            description: `<strong>Contexte :</strong> Le professeur du cours Développement économique local et communautaire souhaite effectuer une mise à jour du cours. Il aimerait remplacer le travail final par l’analyse de deux cas générés par ChatGPT, dans lesquels les étudiants devraient évaluer et corriger les réponses fournies par cet outil.<br><br>
+            <strong>Éléments pour favoriser la réflexion :</strong>
+            <ul>
+                <li>Le contenu généré par ChatGPT est alimenté par trois bases de données spécialisées dans le domaine ainsi que par certaines statistiques provenant du site du MAPAQ.</li>
+                <li>Dans la version actuelle du cours, les étudiants doivent consulter la bibliographie proposée et réaliser un travail écrit dont les consignes sont clairement définies afin de répondre à chacune des questions.</li>
+                <li>Les tuteurs d’encadrement se sentent quelque peu démunis lorsqu’il s’agit de déterminer si les étudiants ont commis du plagiat en utilisant l’IA générative.</li>
+                <li>Une recherche récente dans le domaine de l’économie régionale démontre que ChatGPT est l’un des outils d’IA présentant le plus haut degré de précision dans ses résultats.</li>
+            </ul>` 
+        },
+        { 
+            id: 2, 
+            title: "Mise en situation 2", 
+            description: `<strong>Contexte :</strong> Un nouveau cours sur la gestion de la transformation numérique à l’ère de l’IA devra être offert en ligne à l’automne 2027. Dans le cadre d’un module portant sur la prise de décision et l’analyse des risques, la professeure responsable de la conception du cours souhaite proposer une séance synchrone enregistrée avec les étudiants.<br>
+            La professeure envisage une mise en situation dans laquelle les étudiants devront réaliser une analyse complète des risques associés à une organisation souhaitant légitimer l’utilisation de l’IA pour l’automatisation de certaines tâches de soutien à la production. L’objectif de cette activité serait d’amener les étudiants à justifier leurs choix et à répondre aux différentes questions susceptibles d’être soulevées pendant cette activité synchrone.<br><br>
+            <strong>Éléments pour favoriser la réflexion :</strong>
+            <ul>
+                <li>Malgré l’abondance de la littérature portant sur l’analyse des risques, une part de subjectivité demeure toujours présente, puisque des événements imprévus peuvent survenir lors de ce type d’analyse.</li>
+                <li>Traditionnellement, l’analyse des risques est réalisée à l’aide de tableaux Excel dans lesquels le choix de différentes variables permet de déterminer les types de risques auxquels une organisation peut être confrontée.</li>
+                <li>La professeure a déjà vécu une expérience très positive avec ce type d’évaluation synchrone dans d’autres cours.</li>
+            </ul>` 
+        },
+        { 
+            id: 3, 
+            title: "Mise en situation 3", 
+            description: `<strong>Contexte :</strong> Un cours du programme de communication appliquée aux relations publiques sera élaboré en partenariat avec une entreprise privée reconnue dans ce domaine au Québec. Les deux professeurs responsables devront collaborer étroitement avec les cadres de cette entreprise pour rédiger les mises en situation.<br>
+            L’activité retenue consistera en la remise d’une vidéo dans laquelle l’étudiant devra s’enregistrer et répondre aux consignes qui lui auront été transmises préalablement sur le site du cours.<br><br>
+            <strong>Éléments pour favoriser la réflexion :</strong>
+            <ul>
+                <li>Une certaine divergence est perçue entre l’approche préconisée par l’entreprise et celle privilégiée par les professeurs responsables.</li>
+                <li>Les mises en situation sont relativement complexes et exigent de l’étudiant qu’il fasse preuve de rigueur, d’autonomie et d’une bonne gestion du temps lors de la production de la vidéo.</li>
+                <li>Les relations publiques constituent un domaine qui traverse actuellement une période marquée par l’incertitude et l’ambiguïté en raison de certains enjeux géopolitiques au Québec.</li>
+                <li>Au cours de la session, les étudiants ont bénéficié de deux rencontres synchrones avec la personne tutrice afin d’être adéquatement accompagnés dans la réalisation de leur vidéo.</li>
+            </ul>` 
+        }
+    ];
+
+    let defaultScores = {
+        A: { 1: {target: 'CK', val: 0}, 2: {target: 'PK', val: 0}, 3: {target: 'TK', val: 0} },
+        B: { 1: {target: 'PK', val: 0}, 2: {target: 'TK', val: 0}, 3: {target: 'CK', val: 0} },
+        C: { 1: {target: 'TK', val: 0}, 2: {target: 'CK', val: 0}, 3: {target: 'PK', val: 0} }
+    };
+
+    let scores = JSON.parse(JSON.stringify(defaultScores));
+    let activeGroup = 'A';
+
+    let lastSnapshot = '';
+    let pendingWrites = 0;
+
+    function setSyncStatus(ok) {
+        const el = document.getElementById('syncStatus');
+        el.textContent = ok ? '🟢 Synchronisé en direct' : '🔴 Hors ligne - nouvelle tentative…';
+        el.style.background = ok ? '#dcfce7' : '#fee2e2';
+        el.style.color = ok ? '#166534' : '#991b1b';
+    }
+
+    // Applique les valeurs reçues du serveur ; retourne true si quelque chose a changé
+    function applyServerData(data) {
+        const snapshot = JSON.stringify(data);
+        if (snapshot === lastSnapshot) return false;
+        lastSnapshot = snapshot;
+        ['A', 'B', 'C'].forEach(g => {
+            [1, 2, 3].forEach(id => {
+                if (data[g] && typeof data[g][id] === 'number') scores[g][id].val = data[g][id];
+            });
+        });
+        return true;
+    }
+
+    function refreshViews() {
+        renderWorkspaces();
+        if (activeGroup === 'Admin') generateResults();
+    }
+
+    async function fetchScores() {
+        try {
+            const res = await fetch(API_URL, { cache: 'no-store' });
+            if (!res.ok) throw new Error(res.status);
+            const data = await res.json();
+            setSyncStatus(true);
+            // Ne pas écraser un clic local pas encore enregistré
+            if (pendingWrites > 0) return false;
+            return applyServerData(data);
+        } catch (e) {
+            setSyncStatus(false);
+            return false;
+        }
+    }
+
+    async function sendRequest(method, body) {
+        pendingWrites++;
+        try {
+            const res = await fetch(API_URL, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: body ? JSON.stringify(body) : undefined
+            });
+            if (!res.ok) throw new Error(res.status);
+            const data = await res.json();
+            setSyncStatus(true);
+            pendingWrites--;
+            if (pendingWrites === 0 && applyServerData(data)) refreshViews();
+        } catch (e) {
+            pendingWrites--;
+            setSyncStatus(false);
+        }
+    }
+
+    // Synchronisation automatique : chaque appareil récupère les changements des autres
+    async function poll() {
+        if (await fetchScores()) refreshViews();
+        setTimeout(poll, POLL_MS);
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) fetchScores().then(changed => { if (changed) refreshViews(); });
+    });
+
+    async function forceRefresh() {
+        lastSnapshot = '';
+        await fetchScores();
+        generateResults();
+    }
+
+    async function resetAllScores() {
+        if (confirm("Voulez-vous vraiment effacer tous les pointages et recommencer l'activité à zéro pour tous les groupes ?")) {
+            scores = JSON.parse(JSON.stringify(defaultScores));
+            refreshViews();
+            await sendRequest('DELETE');
+            alert("L'activité a été réinitialisée avec succès.");
+        }
+    }
+
+    const coords = {
+        CK: {x: 130, y: 20},
+        PK: {x: 30, y: 200},
+        TK: {x: 230, y: 200},
+        center: {x: 130, y: 140}
+    };
+
+    function getCoordFromCenter(target, level) {
+        let targetCoord = coords[target];
+        let ratio = level / 4;
+        return {
+            x: coords.center.x + (targetCoord.x - coords.center.x) * ratio,
+            y: coords.center.y + (targetCoord.y - coords.center.y) * ratio
+        };
+    }
+
+    function renderWorkspaces() {
+        ['A', 'B', 'C'].forEach(group => {
+            const container = document.getElementById(`content${group}`);
+            let html = '';
+
+            scenarios.forEach(scen => {
+                const assignedTarget = scores[group][scen.id].target;
+                const currentVal = scores[group][scen.id].val;
+
+                html += `
+                    <div class="scenario-box">
+                        <h3>${scen.title}</h3>
+                        <div class="scenario-desc">${scen.description}</div>
+                        <div class="workspace">
+                            <div>
+                                <p>Composante à évaluer : <b style="color:var(--primary); font-size: 1.1rem;">${assignedTarget}</b></p>
+                                <svg class="triangle-container" viewBox="0 0 260 230">
+                                    <polygon points="130,20 30,200 230,200" fill="none" stroke="#94a3b8" stroke-width="2"/>
+                                    <line x1="130" y1="140" x2="130" y2="20" stroke="#cbd5e1" stroke-dasharray="4"/>
+                                    <line x1="130" y1="140" x2="30" y2="200" stroke="#cbd5e1" stroke-dasharray="4"/>
+                                    <line x1="130" y1="140" x2="230" y2="200" stroke="#cbd5e1" stroke-dasharray="4"/>
+                                    
+                                    <text x="130" y="12" text-anchor="middle" class="axis-label">CK</text>
+                                    <text x="15" y="215" text-anchor="middle" class="axis-label">PK</text>
+                                    <text x="245" y="215" text-anchor="middle" class="axis-label">TK</text>
+
+                                    ${renderAxisNodes(group, scen.id, assignedTarget, currentVal)}
+                                </svg>
+                                <p style="text-align:center; margin-top: 5px;">Pointage attribué : <b>${currentVal}</b> / 4</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        });
+    }
+
+    function renderAxisNodes(group, scenarioId, target, currentVal) {
+        let nodesHtml = '';
+        const targetCoord = coords[target];
+        
+        for (let i = 0; i <= 4; i++) {
+            let pos;
+            if (i === 0) {
+                pos = coords.center;
+            } else {
+                let ratio = i / 4;
+                pos = {
+                    x: coords.center.x + (targetCoord.x - coords.center.x) * ratio,
+                    y: coords.center.y + (targetCoord.y - coords.center.y) * ratio
+                };
+            }
+
+            let color = (currentVal === i) ? "#2563eb" : "#cbd5e1";
+            let radius = (currentVal === i) ? 8 : 5;
+
+            nodesHtml += `<circle cx="${pos.x}" cy="${pos.y}" r="${radius}" fill="${color}" class="node" onclick="setScore('${group}', ${scenarioId}, ${i})" />`;
+        }
+        return nodesHtml;
+    }
+
+    async function setScore(group, scenarioId, val) {
+        scores[group][scenarioId].val = val;
+        refreshViews();
+        await sendRequest('POST', { group, scenarioId, val });
+    }
+
+    function switchGroup(groupName) {
+        activeGroup = groupName;
+        ['A', 'B', 'C', 'Admin'].forEach(g => {
+            document.getElementById(`group${g}`).classList.add('hidden');
+            const btn = document.getElementById(`btn${g}`);
+            if(btn) btn.classList.remove('active');
+        });
+        document.getElementById(`group${groupName}`).classList.remove('hidden');
+        document.getElementById(`btn${groupName}`).classList.add('active');
+
+        if(groupName === 'Admin') {
+            forceRefresh();
+        } else {
+            renderWorkspaces();
+        }
+    }
+
+    function generateResults() {
+        const display = document.getElementById('resultDisplay');
+        const container = document.getElementById('summaryTriangles');
+        display.classList.remove('hidden');
+
+        let html = '';
+        
+        scenarios.forEach(scen => {
+            let valCK = 0, valPK = 0, valTK = 0;
+            
+            ['A', 'B', 'C'].forEach(g => {
+                let target = scores[g][scen.id].target;
+                let val = scores[g][scen.id].val;
+                if (target === 'CK') valCK = val;
+                if (target === 'PK') valPK = val;
+                if (target === 'TK') valTK = val;
+            });
+
+            let cCK = getCoordFromCenter('CK', valCK);
+            let cPK = getCoordFromCenter('PK', valPK);
+            let cTK = getCoordFromCenter('TK', valTK);
+
+            let isEquilateral = (valCK === valPK && valPK === valTK);
+            let isHighCoherence = (valCK >= 3 && valPK >= 3 && valTK >= 3);
+
+            html += `
+                <div style="background:#f8fafc; border: 1px solid #cbd5e1; padding:15px; border-radius:8px; text-align: center; width: 280px;">
+                    <h4 style="margin-top:0;">${scen.title}</h4>
+                    <svg width="230" height="200" viewBox="0 0 260 230">
+                        <polygon points="130,20 30,200 230,200" fill="none" stroke="#cbd5e1" stroke-width="1.5"/>
+                        <polygon points="${cCK.x},${cCK.y} ${cPK.x},${cPK.y} ${cTK.x},${cTK.y}" fill="rgba(37, 99, 235, 0.25)" stroke="#2563eb" stroke-width="2.5"/>
+                        
+                        <circle cx="${cCK.x}" cy="${cCK.y}" r="6" fill="#1d4ed8"/>
+                        <circle cx="${cPK.x}" cy="${cPK.y}" r="6" fill="#1d4ed8"/>
+                        <circle cx="${cTK.x}" cy="${cTK.y}" r="6" fill="#1d4ed8"/>
+                        
+                        <text x="130" y="12" text-anchor="middle" font-size="11" font-weight="bold">CK(${valCK})</text>
+                        <text x="15" y="215" text-anchor="middle" font-size="11" font-weight="bold">PK(${valPK})</text>
+                        <text x="245" y="215" text-anchor="middle" font-size="11" font-weight="bold">TK(${valTK})</text>
+                    </svg>
+                    <div style="font-size:0.85rem; margin-top:8px; text-align: left; background: #fff; padding: 8px; border-radius: 6px;">
+                        <div>${isEquilateral ? '✅ <b>Triangle équilibré</b>' : '⚠️ <b>Triangle déséquilibré</b>'}</div>
+                        <div style="color: #64748b; font-size: 0.8rem; margin-top:2px;">Cohérence : ${isHighCoherence ? 'Élevée (3-4)' : 'Faible / Modérée (1-2)'}</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    async function init() {
+        await fetchScores();
+        renderWorkspaces();
+        switchGroup('A');
+        setTimeout(poll, POLL_MS);
+    }
+
+    init();
+</script>
+
+</body>
+</html>
