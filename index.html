@@ -255,9 +255,12 @@
     let lastSnapshot = '';
     let pendingWrites = 0;
 
-    function setSyncStatus(ok) {
+    function setSyncStatus(ok, error) {
         const el = document.getElementById('syncStatus');
-        el.textContent = ok ? '🟢 Synchronisé en direct' : '🔴 Hors ligne - nouvelle tentative…';
+        el.textContent = ok
+            ? '🟢 Synchronisé en direct'
+            : error ? `🔴 Firebase : ${error.code || error.message}` : '🔴 Hors ligne - nouvelle tentative…';
+        el.title = error ? error.message || String(error) : '';
         el.style.background = ok ? '#dcfce7' : '#fee2e2';
         el.style.color = ok ? '#166534' : '#991b1b';
     }
@@ -290,7 +293,8 @@
             if (pendingWrites > 0) return false;
             return applyServerData(snapshot.data());
         } catch (e) {
-            setSyncStatus(false);
+            console.error('Échec de lecture Firestore:', e);
+            setSyncStatus(false, e);
             return false;
         }
     }
@@ -309,7 +313,10 @@
                     C: { 1: 0, 2: 0, 3: 0 }
                 });
             } else {
-                await scoresRef.update({ [`${body.group}.${body.scenarioId}`]: body.val });
+                await scoresRef.update(
+                    new firebase.firestore.FieldPath(body.group, String(body.scenarioId)),
+                    body.val
+                );
             }
             const snapshot = await scoresRef.get();
             setSyncStatus(true);
@@ -318,7 +325,8 @@
             return true;
         } catch (e) {
             pendingWrites--;
-            setSyncStatus(false);
+            console.error('Échec d’écriture Firestore:', e);
+            setSyncStatus(false, e);
             return false;
         }
     }
@@ -526,9 +534,13 @@
             scoresRef.onSnapshot(snapshot => {
                 setSyncStatus(true);
                 if (pendingWrites === 0 && applyServerData(snapshot.data())) refreshViews();
-            }, () => setSyncStatus(false));
+            }, error => {
+                console.error('Échec de synchronisation Firestore:', error);
+                setSyncStatus(false, error);
+            });
         } catch (e) {
-            setSyncStatus(false);
+            console.error('Échec de connexion Firebase:', e);
+            setSyncStatus(false, e);
         }
     }
 
