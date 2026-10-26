@@ -141,7 +141,6 @@
         <span class="sync-badge" id="syncStatus">⏳ Connexion…</span>
     </header>
 
-    <!-- Sélecteur de groupe -->
     <div class="role-selector" id="navGroups">
         <button onclick="switchGroup('A')" id="btnA">Espace Groupe A</button>
         <button onclick="switchGroup('B')" id="btnB">Espace Groupe B</button>
@@ -149,31 +148,27 @@
         <button onclick="switchGroup('Admin')" id="btnAdmin" style="background-color: #0f172a;">Mode Animateur (Résultat)</button>
     </div>
 
-    <!-- ESPACE GROUPE A -->
     <div id="groupA" class="card group-view">
         <h2>Espace de travail - Groupe A</h2>
         <p><em>Consigne : Vous évaluez <strong>CK</strong> sur la Situation 1, <strong>PK</strong> sur la Situation 2, et <strong>TK</strong> sur la Situation 3.</em></p>
         <div id="contentA"></div>
     </div>
 
-    <!-- ESPACE GROUPE B -->
     <div id="groupB" class="card group-view hidden">
         <h2>Espace de travail - Groupe B</h2>
         <p><em>Consigne : Vous évaluez <strong>PK</strong> sur la Situation 1, <strong>TK</strong> sur la Situation 2, et <strong>CK</strong> sur la Situation 3.</em></p>
         <div id="contentB"></div>
     </div>
 
-    <!-- ESPACE GROUPE C -->
     <div id="groupC" class="card group-view hidden">
         <h2>Espace de travail - Groupe C</h2>
         <p><em>Consigne : Vous évaluez <strong>TK</strong> sur la Situation 1, <strong>CK</strong> sur la Situation 2, et <strong>PK</strong> sur la Situation 3.</em></p>
         <div id="contentC"></div>
     </div>
 
-    <!-- ESPACE ANIMATEUR / RÉSULTAT -->
     <div id="groupAdmin" class="card group-view hidden">
         <h2>Tableau de bord de l'Animateur</h2>
-        <p>Visualisez en direct la synthèse des triangles de tous les groupes (mise à jour automatique toutes les 2 secondes).</p>
+        <p>Visualisez en direct la synthèse des triangles de tous les groupes (mise à jour automatique).</p>
         
         <div class="control-panel">
             <button onclick="forceRefresh()" style="font-size: 1.05rem; padding: 12px 20px; background-color: #16a34a;">🔄 Afficher les Triangles</button>
@@ -202,44 +197,40 @@
     };
     const firebaseConfigured = !Object.values(firebaseConfig).some(value => value.startsWith('YOUR_'));
     let scoresRef = null;
+    let adminRefreshTimer = null;
 
     const scenarios = [
         { 
             id: 1, 
             title: "Mise en situation 1", 
-            description: `<strong>Contexte :</strong> Le professeur du cours Développement économique local et communautaire souhaite effectuer une mise à jour du cours. Il aimerait remplacer le travail final par l’analyse de deux cas générés par ChatGPT, dans lesquels les étudiants devraient évaluer et corriger les réponses fournies par cet outil.<br><br>
-            <strong>Éléments pour favoriser la réflexion :</strong>
+            description: `<strong>Contexte :</strong> Le professeur du cours Développement économique local et communautaire souhaite effectuer une mise à jour du cours. Il aimerait remplacer le texte pédagogique par un ensemble de contenus plus récents et plus pertinents, notamment en intégrant des outils d'intelligence artificielle afin d'améliorer l'expérience d'apprentissage. <br><br> Il souhaite évaluer la manière dont l'IA peut intervenir dans la préparation des cours, tout en prenant en compte les contraintes liées à la vérification des sources et à l'intégrité académique. <br><br> <strong>Éléments pour favoriser la réflexion :</strong>
             <ul>
                 <li>Le contenu généré par ChatGPT est alimenté par trois bases de données spécialisées dans le domaine ainsi que par certaines statistiques provenant du site du MAPAQ.</li>
-                <li>Dans la version actuelle du cours, les étudiants doivent consulter la bibliographie proposée et réaliser un travail écrit dont les consignes sont clairement définies afin de répondre à chacune des questions.</li>
+                <li>Dans la version actuelle du cours, les étudiants doivent consulter la bibliographie proposée et réaliser un travail écrit dont les consignes sont clairement définies afin de réduire les risques de plagiat.</li>
                 <li>Les tuteurs d’encadrement se sentent quelque peu démunis lorsqu’il s’agit de déterminer si les étudiants ont commis du plagiat en utilisant l’IA générative.</li>
                 <li>Une recherche récente dans le domaine de l’économie régionale démontre que ChatGPT est l’un des outils d’IA présentant le plus haut degré de précision dans ses résultats.</li>
-            </ul>` 
+            </ul>`
         },
         { 
             id: 2, 
             title: "Mise en situation 2", 
-            description: `<strong>Contexte :</strong> Un nouveau cours sur la gestion de la transformation numérique à l’ère de l’IA devra être offert en ligne à l’automne 2027. Dans le cadre d’un module portant sur la prise de décision et l’analyse des risques, la professeure responsable de la conception du cours souhaite proposer une séance synchrone enregistrée avec les étudiants.<br>
-            La professeure envisage une mise en situation dans laquelle les étudiants devront réaliser une analyse complète des risques associés à une organisation souhaitant légitimer l’utilisation de l’IA pour l’automatisation de certaines tâches de soutien à la production. L’objectif de cette activité serait d’amener les étudiants à justifier leurs choix et à répondre aux différentes questions susceptibles d’être soulevées pendant cette activité synchrone.<br><br>
-            <strong>Éléments pour favoriser la réflexion :</strong>
+            description: `<strong>Contexte :</strong> Un nouveau cours sur la gestion de la transformation numérique à l’ère de l’IA devra être offert en ligne à l’automne 2027. Dans le cadre de ce cours, la professeure souhaite mettre en place une activité d’évaluation authentique afin d’évaluer les connaissances et compétences des étudiants. <br><br> La professeure envisage une mise en situation dans laquelle les étudiants devront réaliser une analyse complète des risques associés à une organisation souhaitant légitimer l’utilisation de l’IA dans ses pratiques. <br><br> <strong>Éléments pour favoriser la réflexion :</strong>
             <ul>
-                <li>Malgré l’abondance de la littérature portant sur l’analyse des risques, une part de subjectivité demeure toujours présente, puisque des événements imprévus peuvent survenir lors de ce type d’analyse.</li>
-                <li>Traditionnellement, l’analyse des risques est réalisée à l’aide de tableaux Excel dans lesquels le choix de différentes variables permet de déterminer les types de risques auxquels une organisation peut être confrontée.</li>
+                <li>Malgré l’abondance de la littérature portant sur l’analyse des risques, une part de subjectivité demeure toujours présente, puisque des événements imprévus peuvent survenir et influencer les conclusions.</li>
+                <li>Traditionnellement, l’analyse des risques est réalisée à l’aide de tableaux Excel dans lesquels le choix de différentes variables permet de déterminer les types de risques potentiels.</li>
                 <li>La professeure a déjà vécu une expérience très positive avec ce type d’évaluation synchrone dans d’autres cours.</li>
-            </ul>` 
+            </ul>`
         },
         { 
             id: 3, 
             title: "Mise en situation 3", 
-            description: `<strong>Contexte :</strong> Un cours du programme de communication appliquée aux relations publiques sera élaboré en partenariat avec une entreprise privée reconnue dans ce domaine au Québec. Les deux professeurs responsables devront collaborer étroitement avec les cadres de cette entreprise pour rédiger les mises en situation.<br>
-            L’activité retenue consistera en la remise d’une vidéo dans laquelle l’étudiant devra s’enregistrer et répondre aux consignes qui lui auront été transmises préalablement sur le site du cours.<br><br>
-            <strong>Éléments pour favoriser la réflexion :</strong>
+            description: `<strong>Contexte :</strong> Un cours du programme de communication appliquée aux relations publiques sera élaboré en partenariat avec une entreprise privée reconnue dans le domaine. L’entreprise souhaite offrir un projet pédagogique centré sur des situations professionnelles réelles afin de mieux préparer les étudiants à leur insertion sur le marché du travail. <br><br> L’activité retenue consistera en la remise d’une vidéo dans laquelle l’étudiant devra s’enregistrer et répondre aux consignes qui lui auront été transmises préalablement sur une plateforme numérique. <br><br> <strong>Éléments pour favoriser la réflexion :</strong>
             <ul>
                 <li>Une certaine divergence est perçue entre l’approche préconisée par l’entreprise et celle privilégiée par les professeurs responsables.</li>
                 <li>Les mises en situation sont relativement complexes et exigent de l’étudiant qu’il fasse preuve de rigueur, d’autonomie et d’une bonne gestion du temps lors de la production de la vidéo.</li>
-                <li>Les relations publiques constituent un domaine qui traverse actuellement une période marquée par l’incertitude et l’ambiguïté en raison de certains enjeux géopolitiques au Québec.</li>
-                <li>Au cours de la session, les étudiants ont bénéficié de deux rencontres synchrones avec la personne tutrice afin d’être adéquatement accompagnés dans la réalisation de leur vidéo.</li>
-            </ul>` 
+                <li>Les relations publiques constituent un domaine qui traverse actuellement une période marquée par l’incertitude et l’ambiguïté en raison de certains enjeux géopolitiques actuels.</li>
+                <li>Au cours de la session, les étudiants ont bénéficié de deux rencontres synchrones avec la personne tutrice afin d’être adéquatement accompagnés dans la réalisation de leur travail.</li>
+            </ul>`
         }
     ];
 
@@ -251,7 +242,6 @@
 
     let scores = JSON.parse(JSON.stringify(defaultScores));
     let activeGroup = 'A';
-
     let lastSnapshot = '';
     let pendingWrites = 0;
 
@@ -265,16 +255,24 @@
         el.style.color = ok ? '#166534' : '#991b1b';
     }
 
-    // Applique les valeurs reçues du serveur ; retourne true si quelque chose a changé
+    function ensureGroupScores(groupKey, rawGroup) {
+        const defaults = JSON.parse(JSON.stringify(defaultScores[groupKey]));
+        if (!rawGroup || typeof rawGroup !== 'object') return defaults;
+        ['1', '2', '3'].forEach(scenarioId => {
+            if (typeof rawGroup[scenarioId] === 'number') {
+                defaults[scenarioId] = { ...defaults[scenarioId], val: rawGroup[scenarioId] };
+            }
+        });
+        return defaults;
+    }
+
     function applyServerData(data) {
         data = data || {};
         const snapshot = JSON.stringify(data);
         if (snapshot === lastSnapshot) return false;
         lastSnapshot = snapshot;
         ['A', 'B', 'C'].forEach(g => {
-            [1, 2, 3].forEach(id => {
-                if (data[g] && typeof data[g][id] === 'number') scores[g][id].val = data[g][id];
-            });
+            scores[g] = ensureGroupScores(g, data[g]);
         });
         return true;
     }
@@ -289,7 +287,6 @@
         try {
             const snapshot = await scoresRef.get();
             setSyncStatus(true);
-            // Ne pas écraser un clic local pas encore enregistré
             if (pendingWrites > 0) return false;
             return applyServerData(snapshot.data());
         } catch (e) {
@@ -334,6 +331,20 @@
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) fetchScores().then(changed => { if (changed) refreshViews(); });
     });
+
+    function startAdminAutoRefresh() {
+        clearInterval(adminRefreshTimer);
+        adminRefreshTimer = setInterval(() => {
+            if (activeGroup === 'Admin') {
+                forceRefresh();
+            }
+        }, 2000);
+    }
+
+    function stopAdminAutoRefresh() {
+        clearInterval(adminRefreshTimer);
+        adminRefreshTimer = null;
+    }
 
     async function forceRefresh() {
         lastSnapshot = '';
@@ -449,8 +460,10 @@
         document.getElementById(`btn${groupName}`).classList.add('active');
 
         if(groupName === 'Admin') {
+            startAdminAutoRefresh();
             forceRefresh();
         } else {
+            stopAdminAutoRefresh();
             renderWorkspaces();
         }
     }
